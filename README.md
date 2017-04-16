@@ -1,4 +1,4 @@
 # ToDoListManager
 
-The second exercice of POST-PC.
+The third exercice of POST-PC.
 A todolist Manager.
