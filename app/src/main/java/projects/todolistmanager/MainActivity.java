@@ -2,6 +2,7 @@ package projects.todolistmanager;
 
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.database.Cursor;
 import android.net.Uri;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -22,6 +23,8 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.AdapterContextMenuInfo;
 
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -30,6 +33,11 @@ public class MainActivity extends AppCompatActivity {
     private ArrayList<Item> list_of_item;
     private ArrayAdapter<Item> list_adapter;
     private ListView mList;
+
+    private DbHelper todo_db;
+    private Cursor cursor;
+    private ToDoListCursorAdaptor cursorAdapter;
+
     Intent intent;
     private static final String TAG = "MainActivity";
     String message ;
@@ -40,11 +48,18 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        todo_db = new DbHelper(this);
+        todo_db.deleteTable();
+        cursor = todo_db.getDBInformation();
+        String columns_name[] = new String[]{DbHelper.TITLE, DbHelper.DUE_DATE};
+        int txtViews[] = new int[]{R.id.txtTodoTitle, R.id.txtTodoDueDate};
+        cursorAdapter =new ToDoListCursorAdaptor(this, R.layout.activity_main, cursor, columns_name, txtViews);
         list_of_item = new ArrayList<Item>();
         list_adapter = new Adapter(this, R.layout.item_to_add, list_of_item );
         mList = (ListView)  findViewById(R.id.list);
         mList.setLongClickable(true);
-        mList.setAdapter(list_adapter);
+        mList.setAdapter(cursorAdapter);
         list_adapter.notifyDataSetChanged();
         mList.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
 
@@ -53,8 +68,8 @@ public class MainActivity extends AppCompatActivity {
                                            int position, long id) {
 
 
-                String title = list_adapter.getItem(position).getTitle();
-                String task = title + "\n" + list_adapter.getItem(position).getStringDate();
+                String title = todo_db.getTitleByPosition(position);
+                String task = title + "\n" + todo_db.getDueDateByPosition(position);
                 if(title.startsWith("CALL"))
                 {
                     int startingIndex = title.indexOf(" ");
@@ -102,8 +117,9 @@ public class MainActivity extends AppCompatActivity {
                 message = data.getStringExtra(AddAnItem.EXTRA_MESSAGE);
                 Date dueDate = (Date)data.getSerializableExtra("dueDate");
                 Item item_to_add = new Item(message, dueDate);
-                list_adapter.add(item_to_add);
-                list_adapter.notifyDataSetChanged();
+
+                todo_db.addNewTask(message, dueDate.getTime());
+                cursorAdapter.changeCursor(todo_db.getDBInformation());
             }
         }
     }
@@ -111,13 +127,11 @@ public class MainActivity extends AppCompatActivity {
     protected void onSaveInstanceState(Bundle outState) {
         // Save custom values into the bundle
         // Always call the superclass so it can save the view hierarchy state
-        for (int i = 0 ; i < list_adapter.getCount() ; i++){
-            outState.putString(Integer.toString(i) ,list_adapter.getItem(i).getTitle() );
-            outState.putInt(Integer.toString(i+1000) ,list_adapter.getItem(i).getDay());
-            outState.putInt(Integer.toString(i+2000) ,(list_adapter.getItem(i).getMonth()));
-            outState.putInt(Integer.toString(i+3000) ,list_adapter.getItem(i).getYear());
+        for (int i = 0 ; i < cursorAdapter.getCount() ; i++){
+            outState.putString(Integer.toString(i) ,todo_db.getTitleByPosition(i) );
+            outState.putString(Integer.toString(i+1000) ,todo_db.getDueDateByPosition(i));
         }
-        index =list_adapter.getCount();
+        index =cursorAdapter.getCount();
         outState.putInt("int",index);
         super.onSaveInstanceState(outState);
     }
@@ -127,13 +141,16 @@ public class MainActivity extends AppCompatActivity {
         int index2 = savedInstanceState.getInt("int");
         for (int i = 0; i < index2; i++ ){
             String item_to_restore= savedInstanceState.getString(Integer.toString(i));
-            Calendar cal = Calendar.getInstance();
-            cal.set(Calendar.DAY_OF_MONTH, savedInstanceState.getInt(Integer.toString(i+1000)));
-            cal.set(Calendar.MONTH, savedInstanceState.getInt(Integer.toString(i+2000)));
-            cal.set(Calendar.YEAR, savedInstanceState.getInt(Integer.toString(i+3000)));
-            Date date = cal.getTime();
-            list_adapter.add(new Item(item_to_restore, date));
-            list_adapter.notifyDataSetChanged();
+            SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
+            Date myDate = null;
+            try {
+                myDate = dateFormat.parse(savedInstanceState.getString(Integer.toString(i+1000)));
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+
+            todo_db.addNewTask(item_to_restore, myDate.getTime());
+            cursorAdapter.changeCursor(todo_db.getDBInformation());
         }
     }
 

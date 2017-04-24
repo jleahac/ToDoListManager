@@ -1,55 +1,58 @@
 package projects.todolistmanager;
+
+/**
+ * Created by Lea on 20/04/2017.
+ */
+
 import android.content.Context;
+import android.database.Cursor;
 import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
+import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
-
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Locale;
 
-import projects.todolistmanager.R;
+import static projects.todolistmanager.DbHelper.TASK_DUE_DATE_INDEX;
+import static projects.todolistmanager.DbHelper.TITLE_INDEX;
 
-public class Adapter extends ArrayAdapter {
+public class ToDoListCursorAdaptor extends SimpleCursorAdapter {
 
-    private ArrayList<Item> itemsList;
+    private static final int adaptor_flag = 0;
 
-    public Adapter(Context context, int resource, ArrayList<Item> itemsList) {
-        super(context, resource, itemsList);
-        this.itemsList = itemsList;
+    public ToDoListCursorAdaptor(Context context, int layout, Cursor c, String[] from, int[] to) {
+        super(context, layout, c, from, to, adaptor_flag);
     }
 
+    @Override
+    public View newView(Context context, Cursor cursor, ViewGroup parent) {
+        LayoutInflater inflater = LayoutInflater.from(context);
+        return inflater.inflate(R.layout.item_to_add, parent, false);
+    }
 
     @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-
-        View view = convertView;
-
-        if (convertView == null) {
-            LayoutInflater inflater = (LayoutInflater) getContext().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            view = inflater.inflate(R.layout.item_to_add, null);
-        }
+    public void bindView(View view, Context context, Cursor cursor) {
 
         // Retrieving the title and date from the to-do list
         TextView title = (TextView) view.findViewById(R.id.txtTodoTitle);
         TextView date = (TextView) view.findViewById(R.id.txtTodoDueDate);
-        title.setText(itemsList.get(position).getTitle());
-        Date itemDate = itemsList.get(position).getDate();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
+
+        title.setText(cursor.getString(TITLE_INDEX));
+
+        Date itemDate = new Date(cursor.getLong(TASK_DUE_DATE_INDEX));
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
         date.setText(dateFormat.format(itemDate));
 
         Calendar myCalendar = Calendar.getInstance();
         Calendar currentCalendar = Calendar.getInstance();
 
-        Date myDate = itemDate;
         Date currentDate = new Date();
 
-        // We init all the information except the day. We want to know if the due date has passed.
-        myCalendar.setTime(myDate);
+        myCalendar.setTime(itemDate);
         myCalendar.set(Calendar.HOUR_OF_DAY, 0);
         myCalendar.set(Calendar.MINUTE, 0);
         myCalendar.set(Calendar.SECOND, 0);
@@ -61,7 +64,6 @@ public class Adapter extends ArrayAdapter {
         currentCalendar.set(Calendar.SECOND, 0);
         currentCalendar.set(Calendar.MILLISECOND, 0);
 
-        // If the due date has passed, we color the title and date in red
         if (myCalendar.before(currentCalendar)) {
             title.setTextColor(Color.RED);
             date.setTextColor(Color.RED);
@@ -70,11 +72,6 @@ public class Adapter extends ArrayAdapter {
             title.setTextColor(Color.BLUE);
             date.setTextColor(Color.BLUE);
         }
-
-
-
-        title.setTextSize(20);
-        return view;
     }
-
 }
+
